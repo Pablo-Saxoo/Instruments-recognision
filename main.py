@@ -119,6 +119,9 @@ if __name__ == '__main__':
     SQ_BASE = 'database.sqlite'
     QUERY = 'SELECT * FROM  `sounds+akg`'
 
+    EPOCHS = 50
+    BATCH_SIZE = 1000
+
     # Load sql table to pandas dataframe
     conn = sq_connect(SQ_BASE)
     data, y = data_prep(QUERY, conn)
@@ -129,3 +132,40 @@ if __name__ == '__main__':
 
 
     X_train, X_valid, y_train, y_valid = train_test_split(training_data, y, train_size=0.7, random_state=42)
+
+    model = models.Sequential(
+    [
+        layers.Input(shape=X_train.shape[1:]),
+        layers.Normalization(),
+        layers.Dense(256, activation="relu"),
+        layers.BatchNormalization(),
+        layers.Dropout(0.25),
+        layers.Dense(512, activation="relu"),
+        layers.BatchNormalization(),
+        layers.Dropout(0.25),
+        layers.Dense(1024, activation="relu"),
+        layers.BatchNormalization(),
+        layers.Dropout(0.25),
+        layers.Dense(1024, activation="relu"),
+        layers.BatchNormalization(),
+        layers.Dropout(0.),
+        layers.Dense(len(list(y.unique())), activation="softmax", name="instruments"),
+    ])
+
+    model.compile(
+        optimizer="adam", loss="SparseCategoricalCrossentropy", metrics=["accuracy"]
+    )
+
+    history = model.fit(
+        X_train,
+        y_train,
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        callbacks=callbacks.EarlyStopping(verbose=1, patience=2),
+    )
+
+    metrics = history.history
+    print(metrics)
+    plt.plot(history.epoch, metrics['loss'])
+    plt.legend(['loss'])
+    plt.show()
